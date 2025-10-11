@@ -9,28 +9,10 @@ import (
 	"github.com/go-gota/gota/dataframe"
 )
 
-/**
-    I need to be able to automatically detect the csv's tables.
-    Also I need to detect the file type.
-type File_Handler struct {
-FilenName string
-}
-**/
-
-
-func OpenFile() ( *os.File, error){
-    file, err := os.Open("../testing_data/dog_breeds.csv")
+func LoadData() (*dataframe.DataFrame, error) {
+    file, err := os.Open("./testing_data/dog_breeds.csv")
     if err != nil {
         return nil, fmt.Errorf("Error file name not found or not provided: %v", err)
-    }
-
-    return file, nil 
-}
-
-func DetectFileType() (*os.File, error) {
-    file, err := OpenFile()
-    if err != nil {
-        return nil, fmt.Errorf("Error opening file: %s", err)
     }
     reader := bufio.NewReader(file)
 
@@ -42,16 +24,18 @@ func DetectFileType() (*os.File, error) {
     if isJSON(content) {
         f := dataframe.ReadJSON(file)
         fmt.Println(f)
+        return nil, nil
     } else if isCSV(content) {
         f := dataframe.ReadCSV(file)
         fmt.Println(f)
+        return nil, nil
     } else if isTSV(content) {
         f := dataframe.ReadCSV(file)
         fmt.Println(f)
+        return nil, nil
     } else {
         return nil, fmt.Errorf("file is in a wrong format")
     }
-    return file, nil
 }
 
 func isJSON(content string) bool {
