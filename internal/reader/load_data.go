@@ -14,6 +14,9 @@ func LoadData() (*dataframe.DataFrame, error) {
     if err != nil {
         return nil, fmt.Errorf("Error file name not found or not provided: %v", err)
     }
+
+    defer file.Close()
+
     reader := bufio.NewReader(file)
 
     content, err := reader.ReadString('\n')
@@ -21,18 +24,32 @@ func LoadData() (*dataframe.DataFrame, error) {
         return nil, fmt.Errorf("Error reading file: %s", err)
     }
 
+    _, err = file.Seek(0, 0)
+    if err != nil {
+        return nil, fmt.Errorf("Error reseting file pointer: %s", err)
+    }
+
     if isJSON(content) {
         f := dataframe.ReadJSON(file)
+        if err := f.Err; err != nil {
+            return nil, fmt.Errorf("Error reading json: %s", err)
+        }
         fmt.Println(f)
-        return nil, nil
+        return &f, nil
     } else if isCSV(content) {
         f := dataframe.ReadCSV(file)
+        if err := f.Err; err != nil {
+            return nil, fmt.Errorf("Error reading csv: %s", err)
+        }
         fmt.Println(f)
-        return nil, nil
+        return &f, nil
     } else if isTSV(content) {
-        f := dataframe.ReadCSV(file)
+        f := dataframe.ReadCSV(file, dataframe.WithDelimiter('\t'))
+        if err := f.Err; err != nil {
+            return nil, fmt.Errorf("Error reading tsv: %s", err)
+        }
         fmt.Println(f)
-        return nil, nil
+        return &f, nil
     } else {
         return nil, fmt.Errorf("file is in a wrong format")
     }
