@@ -9,15 +9,17 @@ import (
 type Model struct {
     df *dataframe.DataFrame
     err error
+    state string
+    load bool
 }
 
-func NewModel(df *dataframe.DataFrame) Model {
-    //ctx, cancel := context.WithCancel(context.Background())
+func NewModel() Model {
     return Model{
-        df: df,
+        load: true,
+        state: "idle",
     }
 }
 
 func (m Model) Init() tea.Cmd{
-    return tea.Batch(tea.EnterAltScreen)
+    return tea.Batch(loadDataCmd, tea.EnterAltScreen)
 }

@@ -1,14 +1,23 @@
 package tui
 
-import tea "github.com/charmbracelet/bubbletea"
+import (
+	"time"
+
+	"github.com/MikelGV/PrepPulse/internal/reader"
+	tea "github.com/charmbracelet/bubbletea"
+	"github.com/go-gota/gota/dataframe"
+)
+
+type LoadErrMsg error
+type LoadSuccessMsg struct { df *dataframe.DataFrame }
 
 func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
     switch msg := msg.(type) {
-    /**
-        I have to add a case for when a dataframe is sent, when and a few cases 
-        for when something happens(e.g. querying/filtering something)
-    **/
-        case error:
+        case LoadSuccessMsg:
+            m.df = msg.df
+            return m, nil
+
+        case LoadErrMsg:
             m.err = msg
             return m, nil
 
@@ -22,7 +31,15 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
     return m, nil
 }
 
-func waitForDataFrames(m Model) tea.Cmd {
-    return func() tea.Msg {
+func loadDataCmd() tea.Msg {
+    df, err := reader.LoadData()
+    time.Sleep(500 * time.Millisecond)
+
+    if err != nil {
+        return LoadErrMsg(err)
+    }
+
+    return LoadSuccessMsg{
+        df: df,
     }
 }
