@@ -2,26 +2,38 @@ package tui
 
 import (
 	tea "github.com/charmbracelet/bubbletea"
-	"github.com/charmbracelet/lipgloss/table"
 	"github.com/go-gota/gota/dataframe"
+)
+
+type AppState int
+
+const (
+    ListState AppState = iota
+    FileState
 )
 
 type Model struct {
     df *dataframe.DataFrame
+    state AppState 
+    files []string
+    selected int
+    filePath string
+    fileContent string
+    width int
+    height int
+    ready bool
+    editing bool
+    textLines []string
     err error
-    state string
-    load bool
-    table *table.Table
 }
 
 func NewModel() Model {
     return Model{
-        load: true,
-        state: "idle",
-        table: table.New(),
+        state: ListState,
+        selected: 0,
     }
 }
 
 func (m Model) Init() tea.Cmd{
-    return tea.Batch(loadDataCmd(m), tea.EnterAltScreen)
+    return tea.Batch( scanCmd(), tea.EnterAltScreen)
 }

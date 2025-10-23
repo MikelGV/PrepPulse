@@ -9,8 +9,8 @@ import (
 	"github.com/go-gota/gota/dataframe"
 )
 
-func LoadData() (*dataframe.DataFrame, error) {
-    file, err := os.Open("./testing_data/dog_breeds.csv")
+func LoadData(path string) (*dataframe.DataFrame, error) {
+    file, err := os.Open(path)
     if err != nil {
         return nil, fmt.Errorf("Error file name not found or not provided: %v", err)
     }
