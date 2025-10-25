@@ -36,7 +36,7 @@ func (m Model) View() string {
                 output = append(output, components.RenderList(m.files, m.selected, m.height, m.width))
             case FileState:
                 if m.df != nil {
-                    output = append(output, components.RenderDf(m.df, m.width, m.height))
+                    output = append(output, components.RenderDf(m.df, m.width, m.height, m.scrollCol, m.scrollRow))
                 }
         }
     }

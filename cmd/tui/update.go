@@ -41,6 +41,8 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
         case OpenFileMsg:
             m.state = FileState
             m.filePath = msg.Path
+            m.scrollRow = 0
+            m.scrollCol = 0
             ext := strings.ToLower(filepath.Ext(msg.Path))
 
             if ext == ".csv" || ext == ".tsv" || ext == ".json" {
@@ -106,6 +108,7 @@ func (m Model) updateList(msg tea.KeyMsg) (Model, tea.Cmd) {
     return m, nil
 }
 
+
 func (m Model) updateFile(msg tea.KeyMsg) (Model, tea.Cmd) {
     switch msg.String() {
 
@@ -119,6 +122,25 @@ func (m Model) updateFile(msg tea.KeyMsg) (Model, tea.Cmd) {
         if m.df == nil && !m.editing {
             m.editing = true
             m.textLines = strings.Split(m.fileContent, "\n")
+        }
+
+    case "up", "k":
+        if m.df != nil && m.scrollRow > 0 {
+            m.scrollRow--
+        }
+
+    case "down", "j":
+        if m.df != nil && m.scrollRow < m.df.Nrow()-1 {
+            m.scrollRow++
+        }
+    case "left", "h":
+        if m.df != nil && m.scrollCol > 0 {
+            m.scrollCol--
+        }
+
+    case "right", "l":
+        if m.df != nil && m.scrollCol < m.df.Ncol()-1 {
+            m.scrollCol++
         }
     }
 

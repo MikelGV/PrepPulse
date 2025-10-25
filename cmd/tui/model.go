@@ -19,6 +19,8 @@ type Model struct {
     selected int
     filePath string
     fileContent string
+    scrollRow int
+    scrollCol int
     width int
     height int
     ready bool
