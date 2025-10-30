@@ -25,17 +25,22 @@ func RenderDf(df *dataframe.DataFrame, width, height, scrollRow, scrollCol int) 
     }
     
     headers := df.Names()
-    /**
-    colsWidth := calculateColumns(df, width, len(headers))
-    **/
     numCols := len(headers)
-    visibleCols, colsWidth := calculateColumns(df, width, scrollCol)
+    colsWidth := calculateColumns(df, width, numCols)
 
     var headerCells []string
+    currentWidth := 0
 
-    for i, h := range headers {
-        cell := padRight(truncate(h, colsWidth[i]), colsWidth[i])
+    for i := scrollCol; i < numCols; i++ {
+        w := colsWidth[i]
+
+        if currentWidth+w > width-2 {
+            break
+        }
+
+        cell := padRight(truncate(headers[i], w), w)
         headerCells = append(headerCells, headerStyle.Render(cell))
+        currentWidth += w
     }
 
     header := lipgloss.JoinHorizontal(lipgloss.Left, headerCells...)
@@ -43,19 +48,28 @@ func RenderDf(df *dataframe.DataFrame, width, height, scrollRow, scrollCol int) 
     var rows []string
     maxRow := height - 4
 
-    for i := 0; i < df.Nrow() &&  i < maxRow; i++ {
+    for i := 0; i < df.Nrow() && i < maxRow; i++ {
         var cells []string
+        currentWidth := 0
+
         style := evenRowStyle
 
         if i%2 == 1 {
             style = oddRowStyle
         }
+        for j := scrollCol; j < numCols; j ++ {
+            w := colsWidth[j]
 
-        for j := 0; j < df.Ncol(); j++ {
+            if currentWidth+w  > width - 2 {
+                break
+            }
+
             val := fmt.Sprintf("%v", df.Elem(i, j))
-            cell := padRight(truncate(val, colsWidth[j]), colsWidth[j])
+            cell := padRight(truncate(val, w ), w)
             cells = append(cells, style.Render(cell))
+            currentWidth += w
         }
+
 
         row := lipgloss.JoinHorizontal(lipgloss.Left, cells...)
         rows = append(rows, row)
@@ -66,51 +80,36 @@ func RenderDf(df *dataframe.DataFrame, width, height, scrollRow, scrollCol int) 
     return content
 }
 
-func calculateColumns(df *dataframe.DataFrame, totalWidth, numCols int) ([]int, []int) {
-    width := make([]int, numCols)
+func calculateColumns(df *dataframe.DataFrame, totalWidth, numCols int) []int {
+    widths := make([]int, numCols)
 
     for i, h := range df.Names() {
-        width[i] = len(h) + 4
+        widths[i] = len(h) + 4
     }
 
     for i := 0; i < df.Nrow(); i++ {
-        for j := 0; j < df.Ncol(); j++ {
+        for j := 0; j < numCols; j++ {
             s := fmt.Sprintf("%v", df.Elem(i, j))
-
-            if len(s) + 2 > width[j] {
-                width[j] = len(s) + 2
+            if len(s)+2 > widths[j] {
+                widths[j] = len(s) + 2
             }
         }
+
     }
 
-    totalUsed := 0
-    for _, w := range width {
-        totalUsed += w
-    }
 
-    if totalUsed > totalWidth-2 {
-        scale := float64(totalWidth-2) / float64(totalUsed)
-        for i := range width {
-            width[i] = max(3, int(float64(width[i]) * scale))
-            headersLen := len(df.Names()[i]) + 4
-
-            if width[i] < headersLen {
-                width[i] = headersLen
-            }
+    total := 0
+    for _, w := range widths { total += w }
+    if total > totalWidth - 2 {
+        scale := float64(totalWidth -2) / float64(total)
+        for i := range widths {
+            newWidths := int(float64(widths[i]) * scale)
+            minWidth := len(df.Names()[i]) + 4
+            widths[i] = max(newWidths, minWidth)
         }
     }
 
-    remaining := totalWidth - 2 - totalUsed
-
-    if remaining > 0 && numCols > 0 {
-        extraPerCol := remaining / numCols
-
-        for i := range width {
-            width[i] += extraPerCol
-        }
-    }
-
-    return width
+    return widths
 }
 
 func padRight(s string, width int) string {
@@ -132,3 +131,15 @@ func truncate(s string, maxWidth int) string {
     return s[:maxWidth-1] + "..."
 }
 
+
+func clamp(v, lo, hi int) int {
+    if v < lo {
+        return lo
+    }
+
+    if v > hi {
+        return hi
+    }
+
+    return v
+}
