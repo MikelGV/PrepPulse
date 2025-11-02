@@ -48,7 +48,7 @@ func RenderDf(df *dataframe.DataFrame, width, height, scrollRow, scrollCol int) 
     var rows []string
     maxRow := height - 4
 
-    for i := 0; i < df.Nrow() && i < maxRow; i++ {
+    for i := scrollRow; i < df.Nrow() && i < maxRow; i++ {
         var cells []string
         currentWidth := 0
 
