@@ -19,3 +19,8 @@ type OpenFileMsg struct {
 type BackToList struct {}
 
 type ErrorMsg error 
+
+type FilterQuery struct {
+    Query string
+    Dataframe *dataframe.DataFrame
+}

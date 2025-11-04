@@ -1,12 +1,15 @@
 package tui
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"github.com/MikelGV/PrepPulse/internal/reader"
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/go-gota/gota/dataframe"
 )
 
 func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
@@ -62,6 +65,28 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
             m.df = nil
             m.err = nil
             return m, scanCmd()
+        case FilterQuery:
+            query := strings.ToLower(msg.Query)
+            var matches []int
+
+            if m.filterInput == "" {
+                m.filterActive = false
+                m.filteredRows = nil
+            } else {
+                m.filterActive= true
+                for i := 0; i < msg.Dataframe.Nrow(); i++ {
+                    for j := 0; j < msg.Dataframe.Ncol(); j++ {
+                        cell := fmt.Sprintf("%v", msg.Dataframe.Elem(i, j))
+                        
+                        if strings.Contains(strings.ToLower(cell), query) {
+                            matches = append(matches, i)
+                            break
+                        }
+                        
+                    }
+                }
+                m.filteredRows = matches
+            }
         
         case ErrorMsg:
             m.err = error(msg)
@@ -112,35 +137,65 @@ func (m Model) updateList(msg tea.KeyMsg) (Model, tea.Cmd) {
 func (m Model) updateFile(msg tea.KeyMsg) (Model, tea.Cmd) {
     switch msg.String() {
 
-    case "esc":
-        return m, func() tea.Msg { return BackToList{} }
+        case "esc":
+            return m, func() tea.Msg { return BackToList{} }
 
-    case "q", "ctrl+c":
-        return m, tea.Quit
+        case "q", "ctrl+c":
+            return m, tea.Quit
 
-    case "e":
-        if m.df == nil && !m.editing {
-            m.editing = true
-            m.textLines = strings.Split(m.fileContent, "\n")
-        }
+        case "e":
+            if m.df == nil && !m.editing {
+                m.editing = true
+                m.textLines = strings.Split(m.fileContent, "\n")
+            }
 
-    case "up", "k":
-        if m.df != nil && m.scrollRow > 0 {
-            m.scrollRow--
-        }
+        case "up", "k":
+            if m.df != nil && m.scrollRow > 0 {
+                m.scrollRow--
+            }
 
-    case "down", "j":
-        if m.df != nil && m.scrollRow < m.df.Nrow()-1 {
-            m.scrollRow++
-        }
-    case "left", "h":
-        if m.df != nil && m.scrollCol > 0 {
-            m.scrollCol--
-        }
+        case "down", "j":
+            if m.df != nil && m.scrollRow < m.df.Nrow()-1 {
+                m.scrollRow++
+            }
+        case "left", "h":
+            if m.df != nil && m.scrollCol > 0 {
+                m.scrollCol--
+            }
 
-    case "right", "l":
-        if m.df != nil && m.scrollCol < m.df.Ncol()-1 {
-            m.scrollCol++
+        case "right", "l":
+            if m.df != nil && m.scrollCol < m.df.Ncol()-1 {
+                m.scrollCol++
+            }
+        case "/":
+            if m.df != nil {
+                m.filterMode = true
+                m.filterInput = ""
+            }
+        case "b":
+            if m.filterMode {
+                m.filterMode = false
+
+                if m.filterInput == "" {
+                    m.filterActive = false
+                    m.filteredRows = nil
+                }
+            }
+
+        if m.filterMode {
+            switch msg.Type {
+            case tea.KeyRunes:
+                m.filterInput += msg.String()
+                return m, filterCmd(m.df, m.filterInput)
+            case tea.KeyBackspace, tea.KeyDelete:
+                if len(m.filterInput) > 0 {
+                    m.filterInput = m.filterInput[:len(m.filterInput)-1]
+                    return m, filterCmd(m.df, m.filterInput)
+                }
+            case tea.KeyEnter:
+                m.filterMode = false
+                return m, nil
+            }
         }
     }
 
@@ -153,6 +208,12 @@ func loadDataCmd(path string) tea.Cmd {
         df, err := reader.LoadData(path)
         return DataFrameContentMsg{DataFrame: df, Err: err} 
     }
+}
+
+func filterCmd(df *dataframe.DataFrame, query string) tea.Cmd {
+    return tea.Tick(100 * time.Millisecond, func(t time.Time) tea.Msg {
+        return FilterQuery{Query: query, Dataframe: df}
+    })
 }
 
 /**func loadTextCmd() tea.Cmd {

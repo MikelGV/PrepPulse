@@ -19,7 +19,7 @@ var (
         Foreground(lipgloss.Color("#A0A0A0")).Padding(0, 2)
 )
 
-func RenderDf(df *dataframe.DataFrame, width, height, scrollRow, scrollCol int) string {
+func RenderDf(df *dataframe.DataFrame, width, height, scrollRow, scrollCol int, filteredRows []int) string {
     if df == nil || df.Nrow() == 0 {
         return lipgloss.NewStyle().Foreground(lipgloss.Color("#de083a")).Render("No data found")
     }

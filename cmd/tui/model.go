@@ -21,6 +21,10 @@ type Model struct {
     fileContent string
     scrollRow int
     scrollCol int
+    filterMode bool
+    filterInput string 
+    filterActive bool 
+    filteredRows []int
     width int
     height int
     ready bool
