@@ -38,6 +38,12 @@ func (m Model) View() string {
                 if m.df != nil {
                     output = append(output, components.RenderDf(m.df, m.width, m.height, m.scrollRow, m.scrollCol, m.filteredRows))
                 }
+                if m.filterMode {
+                    prompt := lipgloss.NewStyle().Foreground(lipgloss.Color("#A0A0A0")).Render("/")
+                    input := lipgloss.NewStyle().Foreground(lipgloss.Color("#FFFFFF")).Render(m.filterInput + "_")
+                    bar := lipgloss.JoinHorizontal(lipgloss.Left, prompt, input)
+                    output = append(output, bar)
+                }
         }
     }
 

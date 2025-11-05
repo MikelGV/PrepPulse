@@ -73,7 +73,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
                 m.filterActive = false
                 m.filteredRows = nil
             } else {
-                m.filterActive= true
+                m.filterActive = true
                 for i := 0; i < msg.Dataframe.Nrow(); i++ {
                     for j := 0; j < msg.Dataframe.Ncol(); j++ {
                         cell := fmt.Sprintf("%v", msg.Dataframe.Elem(i, j))
@@ -135,6 +135,36 @@ func (m Model) updateList(msg tea.KeyMsg) (Model, tea.Cmd) {
 
 
 func (m Model) updateFile(msg tea.KeyMsg) (Model, tea.Cmd) {
+    if m.filterMode {
+        switch msg.Type {
+        case tea.KeyRunes:
+            for _, r := range msg.Runes {
+                m.filterInput += string(r)
+            }
+
+            return m, filterCmd(m.df, m.filterInput)
+
+        case tea.KeyBackspace, tea.KeyDelete:
+            if len(m.filterInput) > 0 {
+                m.filterInput = m.filterInput[:len(m.filterInput)-1]
+                return m, filterCmd(m.df, m.filterInput)
+            }
+
+        case tea.KeyEnter:
+            m.filterMode = false
+            return m, nil
+
+        case tea.KeyEsc:
+            m.filterMode = false
+            if m.filterInput == "" {
+                m.filterActive = false
+                m.filteredRows = nil
+            }
+            return m, nil
+        }
+
+    }
+
     switch msg.String() {
 
         case "esc":
@@ -167,12 +197,15 @@ func (m Model) updateFile(msg tea.KeyMsg) (Model, tea.Cmd) {
             if m.df != nil && m.scrollCol < m.df.Ncol()-1 {
                 m.scrollCol++
             }
+
         case "/":
             if m.df != nil {
                 m.filterMode = true
                 m.filterInput = ""
+                return m, nil
             }
-        case "b":
+
+        case "escape":
             if m.filterMode {
                 m.filterMode = false
 
@@ -180,23 +213,10 @@ func (m Model) updateFile(msg tea.KeyMsg) (Model, tea.Cmd) {
                     m.filterActive = false
                     m.filteredRows = nil
                 }
-            }
-
-        if m.filterMode {
-            switch msg.Type {
-            case tea.KeyRunes:
-                m.filterInput += msg.String()
-                return m, filterCmd(m.df, m.filterInput)
-            case tea.KeyBackspace, tea.KeyDelete:
-                if len(m.filterInput) > 0 {
-                    m.filterInput = m.filterInput[:len(m.filterInput)-1]
-                    return m, filterCmd(m.df, m.filterInput)
-                }
-            case tea.KeyEnter:
-                m.filterMode = false
                 return m, nil
             }
-        }
+
+        return m, nil
     }
 
     return m, nil
@@ -211,7 +231,7 @@ func loadDataCmd(path string) tea.Cmd {
 }
 
 func filterCmd(df *dataframe.DataFrame, query string) tea.Cmd {
-    return tea.Tick(100 * time.Millisecond, func(t time.Time) tea.Msg {
+    return tea.Tick(100*time.Millisecond, func(t time.Time) tea.Msg {
         return FilterQuery{Query: query, Dataframe: df}
     })
 }

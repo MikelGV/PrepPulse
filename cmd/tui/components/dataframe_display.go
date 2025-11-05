@@ -48,13 +48,28 @@ func RenderDf(df *dataframe.DataFrame, width, height, scrollRow, scrollCol int, 
     var rows []string
     maxRow := height - 4
 
-    for i := scrollRow; i < df.Nrow() && i < maxRow; i++ {
+    var displayRows []int
+    if len(filteredRows) > 0 {
+        displayRows = filteredRows
+    } else {
+        displayRows = make([]int, df.Nrow())
+        for i := 0; i < df.Nrow(); i++ {
+            displayRows[i] = i
+        }
+    }
+
+    start := clamp(scrollRow, 0, len(displayRows)-1)
+    end := clamp(start + maxRow, 0, len(displayRows))
+
+    for viewIdx := start; viewIdx < end; viewIdx++ {
+        realRow := displayRows[viewIdx]
+
         var cells []string
         currentWidth := 0
 
         style := evenRowStyle
 
-        if i%2 == 1 {
+        if viewIdx%2 == 1 {
             style = oddRowStyle
         }
         for j := scrollCol; j < numCols; j ++ {
@@ -64,13 +79,11 @@ func RenderDf(df *dataframe.DataFrame, width, height, scrollRow, scrollCol int, 
                 break
             }
 
-            val := fmt.Sprintf("%v", df.Elem(i, j))
+            val := fmt.Sprintf("%v", df.Elem(realRow, j))
             cell := padRight(truncate(val, w ), w)
             cells = append(cells, style.Render(cell))
             currentWidth += w
         }
-
-
         row := lipgloss.JoinHorizontal(lipgloss.Left, cells...)
         rows = append(rows, row)
     }
