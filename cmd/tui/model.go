@@ -21,14 +21,18 @@ type Model struct {
     fileContent string
     scrollRow int
     scrollCol int
+    cursorRow int
+    cursorCol int
     filterMode bool
     filterInput string 
     filterActive bool 
     filteredRows []int
+    editMode bool
+    editBuffer string
+    editContent string
     width int
     height int
     ready bool
-    editing bool
     textLines []string
     err error
 }

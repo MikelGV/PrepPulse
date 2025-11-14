@@ -65,6 +65,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
             m.df = nil
             m.err = nil
             return m, scanCmd()
+
         case FilterQuery:
             query := strings.ToLower(msg.Query)
             var matches []int
@@ -87,6 +88,9 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
                 }
                 m.filteredRows = matches
             }
+
+        case EditQuery:
+            query := strings.ToLower(msg.Content)
         
         case ErrorMsg:
             m.err = error(msg)
@@ -165,6 +169,8 @@ func (m Model) updateFile(msg tea.KeyMsg) (Model, tea.Cmd) {
 
     }
 
+    if m.editMode {}
+
     switch msg.String() {
 
         case "esc":
@@ -174,8 +180,8 @@ func (m Model) updateFile(msg tea.KeyMsg) (Model, tea.Cmd) {
             return m, tea.Quit
 
         case "e":
-            if m.df == nil && !m.editing {
-                m.editing = true
+            if m.df == nil && !m.editMode {
+                m.editMode = true
                 m.textLines = strings.Split(m.fileContent, "\n")
             }
 
@@ -234,6 +240,9 @@ func filterCmd(df *dataframe.DataFrame, query string) tea.Cmd {
     return tea.Tick(100*time.Millisecond, func(t time.Time) tea.Msg {
         return FilterQuery{Query: query, Dataframe: df}
     })
+}
+
+func editCmd(df *dataframe.DataFrame, query string) tea.Cmd {
 }
 
 /**func loadTextCmd() tea.Cmd {
