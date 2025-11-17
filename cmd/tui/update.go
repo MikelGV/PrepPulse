@@ -89,9 +89,10 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
                 m.filteredRows = matches
             }
 
+        /**
         case EditQuery:
             query := strings.ToLower(msg.Content)
-        
+       **/ 
         case ErrorMsg:
             m.err = error(msg)
             return m, nil
@@ -169,7 +170,30 @@ func (m Model) updateFile(msg tea.KeyMsg) (Model, tea.Cmd) {
 
     }
 
-    if m.editMode {}
+    if m.editMode {
+        switch msg.Type {
+
+        case tea.KeyRunes:
+            // TODO here i think i should be adding the content to the buffer 
+            for _, r := range msg.Runes {
+                m.editBuffer += string(r)
+            }
+
+            return m, editCmd(m.df, m.editBuffer)
+
+        case tea.KeyEnter:
+            m.editMode = false
+            return m, nil
+
+        case tea.KeyEsc:
+            m.editMode = false
+            if m.editBuffer == "" {
+                // TODO here i think i should handle the edit mode selection and the content
+            }
+            return m, nil
+
+        }
+    }
 
     switch msg.String() {
 
@@ -180,9 +204,10 @@ func (m Model) updateFile(msg tea.KeyMsg) (Model, tea.Cmd) {
             return m, tea.Quit
 
         case "e":
-            if m.df == nil && !m.editMode {
+            if m.df != nil && !m.editMode {
                 m.editMode = true
-                m.textLines = strings.Split(m.fileContent, "\n")
+                // TODO here i think i should handle the edit mode selection and the content
+                return m, nil
             }
 
         case "up", "k":
@@ -222,6 +247,13 @@ func (m Model) updateFile(msg tea.KeyMsg) (Model, tea.Cmd) {
                 return m, nil
             }
 
+            if m.editMode {
+                m.editMode = false
+                if m.editBuffer == "" {
+                // TODO here i think i should handle the edit mode selection and the content
+                }
+            }
+
         return m, nil
     }
 
@@ -243,6 +275,9 @@ func filterCmd(df *dataframe.DataFrame, query string) tea.Cmd {
 }
 
 func editCmd(df *dataframe.DataFrame, query string) tea.Cmd {
+    return tea.Tick(100*time.Millisecond, func(t time.Time) tea.Msg {
+        return EditQuery{Content: query, Dataframe: df}
+    })
 }
 
 /**func loadTextCmd() tea.Cmd {
