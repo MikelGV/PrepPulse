@@ -181,7 +181,14 @@ func (m Model) updateFile(msg tea.KeyMsg) (Model, tea.Cmd) {
 
             return m, editCmd(m.df, m.editBuffer)
 
+        case tea.KeyBackspace:
+            if len(m.editBuffer) > 0 {
+                m.editBuffer = m.editBuffer[:len(m.editBuffer)-1]
+            }
+            return  m, nil
+
         case tea.KeyEnter:
+            m.df = m.df.Set(m.cursorRow, m.cursorCol, m.editBuffer)
             m.editMode = false
             return m, nil
 

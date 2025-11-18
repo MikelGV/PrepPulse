@@ -29,7 +29,7 @@ type Model struct {
     filteredRows []int
     editMode bool
     editBuffer string
-    editContent string
+    editOriginal string
     width int
     height int
     ready bool
