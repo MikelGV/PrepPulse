@@ -25,8 +25,3 @@ type FilterQuery struct {
     Dataframe *dataframe.DataFrame
 }
 
-type EditQuery struct {
-    SelectedQuery string
-    Content string
-    Dataframe *dataframe.DataFrame
-}

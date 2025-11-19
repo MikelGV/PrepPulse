@@ -10,6 +10,7 @@ import (
 	"github.com/MikelGV/PrepPulse/internal/reader"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/go-gota/gota/dataframe"
+	"github.com/go-gota/gota/series"
 )
 
 func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
@@ -89,10 +90,6 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
                 m.filteredRows = matches
             }
 
-        /**
-        case EditQuery:
-            query := strings.ToLower(msg.Content)
-       **/ 
         case ErrorMsg:
             m.err = error(msg)
             return m, nil
@@ -174,12 +171,11 @@ func (m Model) updateFile(msg tea.KeyMsg) (Model, tea.Cmd) {
         switch msg.Type {
 
         case tea.KeyRunes:
-            // TODO here i think i should be adding the content to the buffer 
             for _, r := range msg.Runes {
                 m.editBuffer += string(r)
             }
+            return m, nil
 
-            return m, editCmd(m.df, m.editBuffer)
 
         case tea.KeyBackspace:
             if len(m.editBuffer) > 0 {
@@ -188,15 +184,13 @@ func (m Model) updateFile(msg tea.KeyMsg) (Model, tea.Cmd) {
             return  m, nil
 
         case tea.KeyEnter:
-            m.df = m.df.Set(m.cursorRow, m.cursorCol, m.editBuffer)
+            m.df = SetCell(m.df, m.cursorCol, m.cursorRow, m.editBuffer) 
             m.editMode = false
             return m, nil
 
         case tea.KeyEsc:
+            m.editBuffer = m.editOriginal
             m.editMode = false
-            if m.editBuffer == "" {
-                // TODO here i think i should handle the edit mode selection and the content
-            }
             return m, nil
 
         }
@@ -213,27 +207,33 @@ func (m Model) updateFile(msg tea.KeyMsg) (Model, tea.Cmd) {
         case "e":
             if m.df != nil && !m.editMode {
                 m.editMode = true
-                // TODO here i think i should handle the edit mode selection and the content
+                val := m.df.Elem(m.cursorRow, m.cursorCol)
+                m.editBuffer = fmt.Sprintf("%v", val)
+                m.editOriginal = m.editBuffer
                 return m, nil
             }
 
         case "up", "k":
-            if m.df != nil && m.scrollRow > 0 {
+            if m.df != nil && m.scrollRow > 0 && m.cursorRow > 0 {
                 m.scrollRow--
+                m.cursorRow--
             }
 
         case "down", "j":
-            if m.df != nil && m.scrollRow < m.df.Nrow()-1 {
+            if m.df != nil && m.scrollRow < m.df.Nrow()-1 && m.cursorRow < m.df.Nrow()-1 {
                 m.scrollRow++
+                m.cursorRow++
             }
         case "left", "h":
-            if m.df != nil && m.scrollCol > 0 {
+            if m.df != nil && m.scrollCol > 0 && m.cursorCol > 0 {
                 m.scrollCol--
+                m.cursorCol--
             }
 
         case "right", "l":
-            if m.df != nil && m.scrollCol < m.df.Ncol()-1 {
+            if m.df != nil && m.scrollCol < m.df.Ncol()-1 && m.cursorCol < m.df.Ncol()-1 {
                 m.scrollCol++
+                m.cursorCol++
             }
 
         case "/":
@@ -257,8 +257,9 @@ func (m Model) updateFile(msg tea.KeyMsg) (Model, tea.Cmd) {
             if m.editMode {
                 m.editMode = false
                 if m.editBuffer == "" {
-                // TODO here i think i should handle the edit mode selection and the content
+                    m.editBuffer = m.editOriginal
                 }
+                return m, nil
             }
 
         return m, nil
@@ -281,15 +282,26 @@ func filterCmd(df *dataframe.DataFrame, query string) tea.Cmd {
     })
 }
 
-func editCmd(df *dataframe.DataFrame, query string) tea.Cmd {
-    return tea.Tick(100*time.Millisecond, func(t time.Time) tea.Msg {
-        return EditQuery{Content: query, Dataframe: df}
-    })
-}
+func SetCell(df *dataframe.DataFrame, cursorRow, cursorCol int, val interface{}) *dataframe.DataFrame {
+    if df == nil || cursorCol >= df.Ncol() || cursorRow >= df.Nrow()  {
+        return  df
+    }
 
-/**func loadTextCmd() tea.Cmd {
+    colName := df.Names()[cursorCol]
+    original := df.Col(colName)
+
+    values := make([]interface{}, original.Len())
+    for i := 0; i < original.Len(); i++ {
+        values[i] = original.Elem(i).Val()
+    }
+
+    values[cursorRow] = val
+    newSeries := series.New(values, original.Type(), colName)
+
+    newDf := df.Drop(colName).CBind(dataframe.New(newSeries))
+
+    return &newDf 
 }
-**/
 
 func scanCmd() tea.Cmd {
     return func() tea.Msg {
