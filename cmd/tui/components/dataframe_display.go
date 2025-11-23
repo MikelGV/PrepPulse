@@ -17,9 +17,16 @@ var (
         Foreground(lipgloss.Color("#8ecae6")).Padding(0, 2)
     oddRowStyle = lipgloss.NewStyle().
         Foreground(lipgloss.Color("#A0A0A0")).Padding(0, 2)
+    selectedCellRow = lipgloss.NewStyle().
+        Background(lipgloss.Color("#126782")).
+        Foreground(lipgloss.Color("#FFFFFF")).Padding(0, 2)
+    editInputCellStyle = lipgloss.NewStyle().
+        Background(lipgloss.Color("#ffb703")).
+        Foreground(lipgloss.Color("#6969696")).Padding(0, 2)
+ 
 )
 
-func RenderDf(df *dataframe.DataFrame, width, height, scrollRow, scrollCol int, filteredRows []int) string {
+func RenderDf(df *dataframe.DataFrame, width, height, cursorRow, cursorCol, scrollRow, scrollCol int, filteredRows []int, editMode bool, editBuffer string) string {
     if df == nil || df.Nrow() == 0 {
         return lipgloss.NewStyle().Foreground(lipgloss.Color("#de083a")).Render("No data found")
     }
@@ -58,11 +65,13 @@ func RenderDf(df *dataframe.DataFrame, width, height, scrollRow, scrollCol int, 
         }
     }
 
+
     start := clamp(scrollRow, 0, len(displayRows)-1)
     end := clamp(start + maxRow, 0, len(displayRows))
 
     for viewIdx := start; viewIdx < end; viewIdx++ {
         realRow := displayRows[viewIdx]
+
 
         var cells []string
         currentWidth := 0
@@ -72,16 +81,29 @@ func RenderDf(df *dataframe.DataFrame, width, height, scrollRow, scrollCol int, 
         if viewIdx%2 == 1 {
             style = oddRowStyle
         }
+
         for j := scrollCol; j < numCols; j ++ {
             w := colsWidth[j]
+
+            isCursorCell := (realRow == cursorRow) && (j == cursorCol)
 
             if currentWidth+w  > width - 2 {
                 break
             }
 
             val := fmt.Sprintf("%v", df.Elem(realRow, j))
-            cell := padRight(truncate(val, w ), w)
-            cells = append(cells, style.Render(cell))
+
+            if editMode && isCursorCell {
+                input := editBuffer + "█"
+                cell := padRight(input, w)
+                cells = append(cells, editInputCellStyle.Render(cell))
+            } else if isCursorCell {
+                cell := padRight(truncate(val, w ), w)
+                cells = append(cells, selectedStyle.Render(cell))
+            } else {
+                cell := padRight(truncate(val, w ), w)
+                cells = append(cells, style.Render(cell))
+            }
             currentWidth += w
         }
         row := lipgloss.JoinHorizontal(lipgloss.Left, cells...)

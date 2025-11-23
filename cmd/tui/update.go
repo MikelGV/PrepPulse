@@ -282,7 +282,7 @@ func filterCmd(df *dataframe.DataFrame, query string) tea.Cmd {
     })
 }
 
-func SetCell(df *dataframe.DataFrame, cursorRow, cursorCol int, val interface{}) *dataframe.DataFrame {
+func SetCell(df *dataframe.DataFrame, cursorRow, cursorCol int, val any) *dataframe.DataFrame {
     if df == nil || cursorCol >= df.Ncol() || cursorRow >= df.Nrow()  {
         return  df
     }
@@ -290,7 +290,7 @@ func SetCell(df *dataframe.DataFrame, cursorRow, cursorCol int, val interface{})
     colName := df.Names()[cursorCol]
     original := df.Col(colName)
 
-    values := make([]interface{}, original.Len())
+    values := make([]any, original.Len())
     for i := 0; i < original.Len(); i++ {
         values[i] = original.Elem(i).Val()
     }
@@ -298,9 +298,9 @@ func SetCell(df *dataframe.DataFrame, cursorRow, cursorCol int, val interface{})
     values[cursorRow] = val
     newSeries := series.New(values, original.Type(), colName)
 
-    newDf := df.Drop(colName).CBind(dataframe.New(newSeries))
+    result := df.Drop(colName).CBind(dataframe.New(newSeries))
 
-    return &newDf 
+    return &result 
 }
 
 func scanCmd() tea.Cmd {

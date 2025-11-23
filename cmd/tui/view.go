@@ -36,7 +36,7 @@ func (m Model) View() string {
                 output = append(output, components.RenderList(m.files, m.selected, m.height, m.width))
             case FileState:
                 if m.df != nil {
-                    output = append(output, components.RenderDf(m.df, m.width, m.height, m.scrollRow, m.scrollCol, m.filteredRows))
+                output = append(output, components.RenderDf(m.df, m.width, m.height, m.cursorRow, m.cursorCol, m.scrollRow, m.scrollCol, m.filteredRows, m.editMode, m.editBuffer))
                 }
                 if m.filterMode {
                     prompt := lipgloss.NewStyle().Foreground(lipgloss.Color("#A0A0A0")).Render("/")
