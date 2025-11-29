@@ -85,7 +85,7 @@ func RenderDf(df *dataframe.DataFrame, width, height, cursorRow, cursorCol, scro
         for j := scrollCol; j < numCols; j ++ {
             w := colsWidth[j]
 
-            isCursorCell := (realRow == cursorRow) && (j == cursorCol)
+            isCursorCell := (viewIdx == cursorRow) && (j == cursorCol)
 
             if currentWidth+w  > width - 2 {
                 break
@@ -98,6 +98,7 @@ func RenderDf(df *dataframe.DataFrame, width, height, cursorRow, cursorCol, scro
                 cell := padRight(input, w)
                 cells = append(cells, editInputCellStyle.Render(cell))
             } else if isCursorCell {
+                // TODO: i have to fix this becasue for some reason the selectedStyle is not rendering
                 cell := padRight(truncate(val, w ), w)
                 cells = append(cells, selectedStyle.Render(cell))
             } else {

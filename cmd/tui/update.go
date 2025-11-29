@@ -185,6 +185,7 @@ func (m Model) updateFile(msg tea.KeyMsg) (Model, tea.Cmd) {
 
         case tea.KeyEnter:
             m.df = SetCell(m.df, m.cursorCol, m.cursorRow, m.editBuffer) 
+            // TODO: after i hit enter i need to save the file changes so i need to update the file with the new values if anything has changed
             m.editMode = false
             return m, nil
 
