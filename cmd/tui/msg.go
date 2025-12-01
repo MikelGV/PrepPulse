@@ -1,6 +1,6 @@
 package tui
 
-import "github.com/go-gota/gota/dataframe"
+import dataframe "github.com/rocketlaunchr/dataframe-go"
 
 type ScanResultMsg struct {
     Files []string

@@ -5,7 +5,7 @@ import (
 	"strings"
 
 	"github.com/charmbracelet/lipgloss"
-	"github.com/go-gota/gota/dataframe"
+    dataframe "github.com/rocketlaunchr/dataframe-go"
 )
 
 var (

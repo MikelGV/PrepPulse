@@ -9,8 +9,7 @@ import (
 
 	"github.com/MikelGV/PrepPulse/internal/reader"
 	tea "github.com/charmbracelet/bubbletea"
-	"github.com/go-gota/gota/dataframe"
-	"github.com/go-gota/gota/series"
+    dataframe "github.com/rocketlaunchr/dataframe-go"
 )
 
 func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {

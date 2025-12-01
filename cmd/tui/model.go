@@ -2,7 +2,7 @@ package tui
 
 import (
 	tea "github.com/charmbracelet/bubbletea"
-	"github.com/go-gota/gota/dataframe"
+    dataframe "github.com/rocketlaunchr/dataframe-go"
 )
 
 type AppState int

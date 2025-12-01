@@ -6,7 +6,9 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/go-gota/gota/dataframe"
+    dataframe "github.com/rocketlaunchr/dataframe-go"
+    "github.com/rocketlaunchr/dataframe-go/imports"
+
 )
 
 func LoadData(path string) (*dataframe.DataFrame, error) {
@@ -30,21 +32,21 @@ func LoadData(path string) (*dataframe.DataFrame, error) {
     }
 
     if isJSON(content) {
-        f := dataframe.ReadJSON(file)
+        f := imports.LoadFromJSON(file)
         if err := f.Err; err != nil {
             return nil, fmt.Errorf("Error reading json: %s", err)
         }
         fmt.Println(f)
         return &f, nil
     } else if isCSV(content) {
-        f := dataframe.ReadCSV(file)
+        f := imports.LoadFromCSV(file)
         if err := f.Err; err != nil {
             return nil, fmt.Errorf("Error reading csv: %s", err)
         }
         fmt.Println(f)
         return &f, nil
     } else if isTSV(content) {
-        f := dataframe.ReadCSV(file, dataframe.WithDelimiter('\t'))
+        f := imports.LoadFromCSV(file, dataframe.WithDelimiter('\t'))
         if err := f.Err; err != nil {
             return nil, fmt.Errorf("Error reading tsv: %s", err)
         }
