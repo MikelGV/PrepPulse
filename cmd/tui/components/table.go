@@ -1,13 +1,14 @@
 package components
 
+
+
+/**
 import (
 	"fmt"
 
 	"github.com/charmbracelet/lipgloss"
 	"github.com/charmbracelet/lipgloss/table"
 )
-
-
 func CreateTable(df *dataframe.DataFrame) *table.Table {
     t := table.New().
         Border(lipgloss.NormalBorder()).
@@ -44,3 +45,4 @@ func CreateTable(df *dataframe.DataFrame) *table.Table {
 
     return t
 }
+**/

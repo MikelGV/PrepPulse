@@ -2,13 +2,13 @@ package reader
 
 import (
 	"bufio"
+	"context"
 	"encoding/json"
 	"fmt"
 	"os"
 
-    dataframe "github.com/rocketlaunchr/dataframe-go"
-    "github.com/rocketlaunchr/dataframe-go/imports"
-
+	"github.com/rocketlaunchr/dataframe-go"
+	"github.com/rocketlaunchr/dataframe-go/imports"
 )
 
 func LoadData(path string) (*dataframe.DataFrame, error) {
@@ -32,26 +32,27 @@ func LoadData(path string) (*dataframe.DataFrame, error) {
     }
 
     if isJSON(content) {
-        f := imports.LoadFromJSON(file)
-        if err := f.Err; err != nil {
+        f, err:= imports.LoadFromJSON(context.Background(), file)
+        if err != nil {
             return nil, fmt.Errorf("Error reading json: %s", err)
         }
         fmt.Println(f)
-        return &f, nil
+        return f, nil
+
     } else if isCSV(content) {
-        f := imports.LoadFromCSV(file)
-        if err := f.Err; err != nil {
+        f, err:= imports.LoadFromCSV(context.Background(), file)
+        if  err != nil {
             return nil, fmt.Errorf("Error reading csv: %s", err)
         }
         fmt.Println(f)
-        return &f, nil
+        return f, nil
     } else if isTSV(content) {
-        f := imports.LoadFromCSV(file, dataframe.WithDelimiter('\t'))
-        if err := f.Err; err != nil {
+        f, err := imports.LoadFromCSV(context.Background(), file, imports.CSVLoadOptions{Comma: '\t'})
+        if err != nil {
             return nil, fmt.Errorf("Error reading tsv: %s", err)
         }
         fmt.Println(f)
-        return &f, nil
+        return f, nil
     } else {
         return nil, fmt.Errorf("file is in a wrong format")
     }

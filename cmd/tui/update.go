@@ -75,9 +75,9 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
                 m.filteredRows = nil
             } else {
                 m.filterActive = true
-                for i := 0; i < msg.Dataframe.Nrow(); i++ {
-                    for j := 0; j < msg.Dataframe.Ncol(); j++ {
-                        cell := fmt.Sprintf("%v", msg.Dataframe.Elem(i, j))
+                for i := 0; i < msg.Dataframe.NRows(); i++ {
+                    for j := 0; j < len(msg.Dataframe.Series); j++ {
+                        cell := fmt.Sprintf("%v", msg.Dataframe.Series[j].Value(i))
                         
                         if strings.Contains(strings.ToLower(cell), query) {
                             matches = append(matches, i)
@@ -207,7 +207,7 @@ func (m Model) updateFile(msg tea.KeyMsg) (Model, tea.Cmd) {
         case "e":
             if m.df != nil && !m.editMode {
                 m.editMode = true
-                val := m.df.Elem(m.cursorRow, m.cursorCol)
+                val := m.df.Series[m.cursorRow].Value(m.cursorCol)
                 m.editBuffer = fmt.Sprintf("%v", val)
                 m.editOriginal = m.editBuffer
                 return m, nil
@@ -220,7 +220,7 @@ func (m Model) updateFile(msg tea.KeyMsg) (Model, tea.Cmd) {
             }
 
         case "down", "j":
-            if m.df != nil && m.scrollRow < m.df.Nrow()-1 && m.cursorRow < m.df.Nrow()-1 {
+            if m.df != nil && m.scrollRow < m.df.NRows()-1 && m.cursorRow < m.df.NRows()-1 {
                 m.scrollRow++
                 m.cursorRow++
             }
@@ -231,7 +231,7 @@ func (m Model) updateFile(msg tea.KeyMsg) (Model, tea.Cmd) {
             }
 
         case "right", "l":
-            if m.df != nil && m.scrollCol < m.df.Ncol()-1 && m.cursorCol < m.df.Ncol()-1 {
+            if m.df != nil && m.scrollCol < len(m.df.Series)-1 && m.cursorCol < len(m.df.Series)-1 {
                 m.scrollCol++
                 m.cursorCol++
             }
@@ -282,25 +282,31 @@ func filterCmd(df *dataframe.DataFrame, query string) tea.Cmd {
     })
 }
 
-func SetCell(df *dataframe.DataFrame, cursorRow, cursorCol int, val any) *dataframe.DataFrame {
-    if df == nil || cursorCol >= df.Ncol() || cursorRow >= df.Nrow()  {
+func SetCell(df *dataframe.DataFrame, cursorRow, cursorCol int, val interface{}) *dataframe.DataFrame {
+    if df == nil || cursorCol >= len(df.Series) || cursorRow >= df.NRows()  {
         return  df
     }
 
     colName := df.Names()[cursorCol]
-    original := df.Col(colName)
-
-    values := make([]any, original.Len())
-    for i := 0; i < original.Len(); i++ {
-        values[i] = original.Elem(i).Val()
+    /**
+    original, err:= df.NameToColumn(colName)
+    if err != nil {
+        fmt.Errorf("Something went wrong retrieving originals %w", err)
+        return nil 
     }
 
+    values := make([]any, original)
+    for i := 0; i < original; i++ {
+        values[i] = df.Series[original].Value(i)
+    }
     values[cursorRow] = val
     newSeries := series.New(values, original.Type(), colName)
+    **/
 
-    result := df.Drop(colName).CBind(dataframe.New(newSeries))
+    df.Update(cursorRow, colName, val)
 
-    return &result 
+
+    return df 
 }
 
 func scanCmd() tea.Cmd {

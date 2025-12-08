@@ -27,7 +27,7 @@ var (
 )
 
 func RenderDf(df *dataframe.DataFrame, width, height, cursorRow, cursorCol, scrollRow, scrollCol int, filteredRows []int, editMode bool, editBuffer string) string {
-    if df == nil || df.Nrow() == 0 {
+    if df == nil || df.NRows() == 0 {
         return lipgloss.NewStyle().Foreground(lipgloss.Color("#de083a")).Render("No data found")
     }
     
@@ -59,8 +59,8 @@ func RenderDf(df *dataframe.DataFrame, width, height, cursorRow, cursorCol, scro
     if len(filteredRows) > 0 {
         displayRows = filteredRows
     } else {
-        displayRows = make([]int, df.Nrow())
-        for i := 0; i < df.Nrow(); i++ {
+        displayRows = make([]int, df.NRows())
+        for i := 0; i < df.NRows(); i++ {
             displayRows[i] = i
         }
     }
@@ -91,7 +91,7 @@ func RenderDf(df *dataframe.DataFrame, width, height, cursorRow, cursorCol, scro
                 break
             }
 
-            val := fmt.Sprintf("%v", df.Elem(realRow, j))
+            val := fmt.Sprintf("%v", df.Series[realRow].Value(j))
 
             if editMode && isCursorCell {
                 input := editBuffer + "█"
@@ -123,9 +123,9 @@ func calculateColumns(df *dataframe.DataFrame, totalWidth, numCols int) []int {
         widths[i] = len(h) + 4
     }
 
-    for i := 0; i < df.Nrow(); i++ {
+    for i := 0; i < df.NRows(); i++ {
         for j := 0; j < numCols; j++ {
-            s := fmt.Sprintf("%v", df.Elem(i, j))
+            s := fmt.Sprintf("%v", df.Series[i].Value(j))
             if len(s)+2 > widths[j] {
                 widths[j] = len(s) + 2
             }
