@@ -76,8 +76,10 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
             } else {
                 m.filterActive = true
                 for i := 0; i < msg.Dataframe.NRows(); i++ {
+					row := m.df.Row(i, false, dataframe.SeriesIdx)
                     for j := 0; j < len(msg.Dataframe.Series); j++ {
-                        cell := fmt.Sprintf("%v", msg.Dataframe.Series[j].Value(i))
+						val := row[j]
+                        cell := fmt.Sprintf("%v", val)
                         
                         if strings.Contains(strings.ToLower(cell), query) {
                             matches = append(matches, i)
@@ -207,7 +209,7 @@ func (m Model) updateFile(msg tea.KeyMsg) (Model, tea.Cmd) {
         case "e":
             if m.df != nil && !m.editMode {
                 m.editMode = true
-                val := m.df.Series[m.cursorRow].Value(m.cursorCol)
+                val := m.df.Row(m.cursorRow, false, dataframe.SeriesIdx)[m.cursorCol]
                 m.editBuffer = fmt.Sprintf("%v", val)
                 m.editOriginal = m.editBuffer
                 return m, nil
@@ -288,23 +290,9 @@ func SetCell(df *dataframe.DataFrame, cursorRow, cursorCol int, val interface{})
     }
 
     colName := df.Names()[cursorCol]
-    /**
-    original, err:= df.NameToColumn(colName)
-    if err != nil {
-        fmt.Errorf("Something went wrong retrieving originals %w", err)
-        return nil 
-    }
-
-    values := make([]any, original)
-    for i := 0; i < original; i++ {
-        values[i] = df.Series[original].Value(i)
-    }
-    values[cursorRow] = val
-    newSeries := series.New(values, original.Type(), colName)
-    **/
 
     df.Update(cursorRow, colName, val)
-
+	//TODO i need to be able to save the file once it's updated and someone has hit enter
 
     return df 
 }

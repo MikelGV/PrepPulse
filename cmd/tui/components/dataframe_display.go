@@ -72,7 +72,6 @@ func RenderDf(df *dataframe.DataFrame, width, height, cursorRow, cursorCol, scro
     for viewIdx := start; viewIdx < end; viewIdx++ {
         realRow := displayRows[viewIdx]
 
-
         var cells []string
         currentWidth := 0
 
@@ -84,6 +83,7 @@ func RenderDf(df *dataframe.DataFrame, width, height, cursorRow, cursorCol, scro
 
         for j := scrollCol; j < numCols; j ++ {
             w := colsWidth[j]
+			rowMap := df.Row(realRow, false, dataframe.SeriesIdx)[j]
 
             isCursorCell := (viewIdx == cursorRow) && (j == cursorCol)
 
@@ -91,16 +91,15 @@ func RenderDf(df *dataframe.DataFrame, width, height, cursorRow, cursorCol, scro
                 break
             }
 
-            val := fmt.Sprintf("%v", df.Series[realRow].Value(j))
+            val := fmt.Sprintf("%v", rowMap)
 
             if editMode && isCursorCell {
                 input := editBuffer + "█"
                 cell := padRight(input, w)
                 cells = append(cells, editInputCellStyle.Render(cell))
             } else if isCursorCell {
-                // TODO: i have to fix this becasue for some reason the selectedStyle is not rendering
                 cell := padRight(truncate(val, w ), w)
-                cells = append(cells, selectedStyle.Render(cell))
+                cells = append(cells, selectedCellRow.Render(cell))
             } else {
                 cell := padRight(truncate(val, w ), w)
                 cells = append(cells, style.Render(cell))
@@ -124,8 +123,10 @@ func calculateColumns(df *dataframe.DataFrame, totalWidth, numCols int) []int {
     }
 
     for i := 0; i < df.NRows(); i++ {
+		row := df.Row(i, false, dataframe.SeriesName)
         for j := 0; j < numCols; j++ {
-            s := fmt.Sprintf("%v", df.Series[i].Value(j))
+			val := row[j]
+            s := fmt.Sprintf("%v", val)
             if len(s)+2 > widths[j] {
                 widths[j] = len(s) + 2
             }
