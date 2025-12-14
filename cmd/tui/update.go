@@ -191,7 +191,9 @@ func (m Model) updateFile(msg tea.KeyMsg) (Model, tea.Cmd) {
 				m.editMode = false
 
 				if m.editOriginal != m.editBuffer {
-					m.df = SetCell(m.df, m.cursorCol, m.cursorRow, m.editBuffer) 
+					colName := m.df.Names()[m.cursorCol]
+
+					m.df.Update(m.cursorRow, colName, m.editBuffer) 
 					return m, updateDataCmd(m.filePath, m.df)
 				}
 
@@ -253,6 +255,18 @@ func (m Model) updateFile(msg tea.KeyMsg) (Model, tea.Cmd) {
                 return m, nil
             }
 
+		case "u", "ctrl+z":
+			m.editMode = false
+
+			if  m.editBuffer != m.editOriginal {
+				colName := m.df.Names()[m.cursorCol]
+
+				m.df.Update(m.cursorRow, colName, m.editOriginal) 
+				return m, updateDataCmd(m.filePath, m.df)
+			}
+
+			return m, nil
+
         case "escape":
             if m.filterMode {
                 m.filterMode = false
@@ -303,18 +317,6 @@ func filterCmd(df *dataframe.DataFrame, query string) tea.Cmd {
     return tea.Tick(100*time.Millisecond, func(t time.Time) tea.Msg {
         return FilterQuery{Query: query, Dataframe: df}
     })
-}
-
-func SetCell(df *dataframe.DataFrame, cursorRow, cursorCol int, val interface{}) *dataframe.DataFrame {
-    if df == nil || cursorCol >= len(df.Series) || cursorRow >= df.NRows()  {
-        return  df
-    }
-
-    colName := df.Names()[cursorCol]
-
-    df.Update(cursorRow, colName, val)
-	
-    return df 
 }
 
 func scanCmd() tea.Cmd {
