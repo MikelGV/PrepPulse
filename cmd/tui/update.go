@@ -8,8 +8,9 @@ import (
 	"time"
 
 	"github.com/MikelGV/PrepPulse/internal/reader"
+	"github.com/MikelGV/PrepPulse/internal/write"
 	tea "github.com/charmbracelet/bubbletea"
-    dataframe "github.com/rocketlaunchr/dataframe-go"
+	dataframe "github.com/rocketlaunchr/dataframe-go"
 )
 
 func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
@@ -155,6 +156,7 @@ func (m Model) updateFile(msg tea.KeyMsg) (Model, tea.Cmd) {
 
         case tea.KeyEnter:
             m.filterMode = false
+			
             return m, nil
 
         case tea.KeyEsc:
@@ -185,10 +187,16 @@ func (m Model) updateFile(msg tea.KeyMsg) (Model, tea.Cmd) {
             return  m, nil
 
         case tea.KeyEnter:
-            m.df = SetCell(m.df, m.cursorCol, m.cursorRow, m.editBuffer) 
-            // TODO: after i hit enter i need to save the file changes so i need to update the file with the new values if anything has changed
-            m.editMode = false
-            return m, nil
+			if m.editMode {
+				m.editMode = false
+
+				if m.editOriginal != m.editBuffer {
+					m.df = SetCell(m.df, m.cursorCol, m.cursorRow, m.editBuffer) 
+					return m, updateDataCmd(m.filePath, m.df)
+				}
+
+				return m, nil
+			}
 
         case tea.KeyEsc:
             m.editBuffer = m.editOriginal
@@ -277,6 +285,19 @@ func loadDataCmd(path string) tea.Cmd {
         return DataFrameContentMsg{DataFrame: df, Err: err} 
     }
 }
+func updateDataCmd(path string, df *dataframe.DataFrame) tea.Cmd {
+    return func() tea.Msg {
+
+        err := write.Update_data(path, df)
+
+		if err != nil {
+			return ErrorMsg(err)
+		}
+
+        return UpdateContentMsg{DataFrame: df, Err: err}  
+    }
+}
+
 
 func filterCmd(df *dataframe.DataFrame, query string) tea.Cmd {
     return tea.Tick(100*time.Millisecond, func(t time.Time) tea.Msg {
@@ -292,8 +313,7 @@ func SetCell(df *dataframe.DataFrame, cursorRow, cursorCol int, val interface{})
     colName := df.Names()[cursorCol]
 
     df.Update(cursorRow, colName, val)
-	//TODO i need to be able to save the file once it's updated and someone has hit enter
-
+	
     return df 
 }
 

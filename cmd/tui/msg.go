@@ -12,6 +12,11 @@ type DataFrameContentMsg struct {
     Err error
 }
 
+type UpdateContentMsg struct {
+    DataFrame *dataframe.DataFrame
+    Err error
+}
+
 type OpenFileMsg struct {
     Path string
 }
