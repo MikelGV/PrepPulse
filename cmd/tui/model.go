@@ -12,6 +12,15 @@ const (
     FileState
 )
 
+type UndoCommand struct {
+	Row int
+	Col int
+	OldValue interface{} 
+	NewValue interface{}
+}
+
+const MaxUndo int = 50
+
 type Model struct {
     df *dataframe.DataFrame
     state AppState 
@@ -30,6 +39,9 @@ type Model struct {
     editMode bool
     editBuffer string
     editOriginal string
+	redoStack []UndoCommand
+	undoStack []UndoCommand
+	maxUndo int 
     width int
     height int
     ready bool
@@ -41,6 +53,7 @@ func NewModel() Model {
     return Model{
         state: ListState,
         selected: 0,
+		maxUndo: MaxUndo,
     }
 }
 

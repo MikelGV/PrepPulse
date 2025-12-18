@@ -190,10 +190,27 @@ func (m Model) updateFile(msg tea.KeyMsg) (Model, tea.Cmd) {
 			if m.editMode {
 				m.editMode = false
 
+				oldVal := m.df.Series[m.cursorCol].Value(m.cursorRow)
+
 				if m.editOriginal != m.editBuffer {
 					colName := m.df.Names()[m.cursorCol]
 
 					m.df.Update(m.cursorRow, colName, m.editBuffer) 
+
+					cmd := UndoCommand{
+						Row: m.cursorRow,
+						Col: m.cursorCol,
+						OldValue: oldVal,
+						NewValue: m.editBuffer,
+					}
+
+					m.undoStack = append(m.undoStack, cmd)
+					if len(m.undoStack) > m.maxUndo {
+						m.undoStack = m.undoStack[1:]
+					}
+
+					m.redoStack = nil
+
 					return m, updateDataCmd(m.filePath, m.df)
 				}
 
@@ -256,16 +273,30 @@ func (m Model) updateFile(msg tea.KeyMsg) (Model, tea.Cmd) {
             }
 
 		case "u", "ctrl+z":
-			m.editMode = false
+			if len(m.undoStack) > 0 {
+				cmd := m.undoStack[len(m.undoStack)-1]
+				m.undoStack = m.undoStack[:len(m.undoStack)-1]
 
-			if  m.editBuffer != m.editOriginal {
-				colName := m.df.Names()[m.cursorCol]
+				colName := m.df.Names()[cmd.Col]
+				m.df.Update(cmd.Row, colName, cmd.OldValue)
 
-				m.df.Update(m.cursorRow, colName, m.editOriginal) 
-				return m, updateDataCmd(m.filePath, m.df)
+				m.redoStack = append(m.redoStack, cmd)
+				
+				return m, nil
 			}
 
-			return m, nil
+		case "ctrl+r":
+			if len(m.redoStack) > 0 {
+				cmd := m.redoStack[len(m.redoStack)-1]
+				m.redoStack = m.redoStack[:len(m.redoStack)-1]
+				
+				colName := m.df.Names()[cmd.Col]
+				m.df.Update(cmd.Row, colName, cmd.NewValue)
+
+				m.undoStack = append(m.undoStack, cmd)
+
+				return m, nil
+			}
 
         case "escape":
             if m.filterMode {
