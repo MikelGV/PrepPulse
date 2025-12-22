@@ -8,44 +8,49 @@ import (
 )
 
 var (
-    errorStyle = lipgloss.NewStyle().
-        Foreground(lipgloss.Color("#DB222A")).
-        Padding(0, 1)
+	errorStyle = lipgloss.NewStyle().
+			Foreground(lipgloss.Color("#DB222A")).
+			Padding(0, 1)
 
-    warningStyle = lipgloss.NewStyle().
-        Foreground(lipgloss.Color("#A0A0A0")).
-        Padding(0, 1)
+	warningStyle = lipgloss.NewStyle().
+			Foreground(lipgloss.Color("#A0A0A0")).
+			Padding(0, 1)
 )
 
 func (m Model) View() string {
-    var output []string
+	var output []string
 
-    if m.err != nil {
-        output = append(output, errorStyle.Render("Error: " +m.err.Error()))
-    } else if !m.ready {
-        start := time.Now()
+	if m.err != nil {
+		output = append(output, errorStyle.Render("Error: "+m.err.Error()))
+	} else if !m.ready {
+		start := time.Now()
 
-        if time.Since(start) > 100*time.Millisecond {
-            output = append(output, warningStyle.Render("Scanning directory..."))
-        } else {
-            output = append(output, warningStyle.Render("Initializing..."))
-        } 
-    } else {
-        switch m.state {
-            case ListState:
-                output = append(output, components.RenderList(m.files, m.selected, m.height, m.width))
-            case FileState:
-                if m.df != nil {
-                output = append(output, components.RenderDf(m.df, m.width, m.height, m.cursorRow, m.cursorCol, m.scrollRow, m.scrollCol, m.filteredRows, m.editMode, m.editBuffer))
-                }
-                if m.filterMode {
-                    prompt := lipgloss.NewStyle().Foreground(lipgloss.Color("#A0A0A0")).Render("/")
-                    input := lipgloss.NewStyle().Foreground(lipgloss.Color("#FFFFFF")).Render(m.filterInput + "_")
-                    bar := lipgloss.JoinHorizontal(lipgloss.Left, prompt, input)
-                    output = append(output, bar)
-                }
-        }
-    }
+		if time.Since(start) > 100*time.Millisecond {
+			output = append(output, warningStyle.Render("Scanning directory..."))
+		} else {
+			output = append(output, warningStyle.Render("Initializing..."))
+		}
+	} else {
+		switch m.state {
+		case ListState:
+			output = append(output, components.RenderList(m.files, m.selected, m.height, m.width))
+		case FileState:
+			if m.df != nil {
+				output = append(output, components.RenderDf(m.df, m.width, m.height, m.cursorRow, m.cursorCol, m.scrollRow, m.scrollCol, m.filteredRows, m.editMode, m.editBuffer))
+			}
+			if m.filterMode {
+				prompt := lipgloss.NewStyle().Foreground(lipgloss.Color("#A0A0A0")).Render("/")
+				input := lipgloss.NewStyle().Foreground(lipgloss.Color("#FFFFFF")).Render(m.filterInput + "_")
+				bar := lipgloss.JoinHorizontal(lipgloss.Left, prompt, input)
+				output = append(output, bar)
+			}
+			if m.statsMode {
+				prompt := components.CreateTable(m.df, m.statsColumns, m.height, m.width)
+				bar := lipgloss.JoinHorizontal(lipgloss.Center, prompt)
+				output = append(output, bar)
+			}
+		}
+	}
 
-    return lipgloss.JoinVertical(lipgloss.Center, output...) 
+	return lipgloss.JoinVertical(lipgloss.Center, output...)
 }
