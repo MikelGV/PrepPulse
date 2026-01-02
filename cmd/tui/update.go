@@ -56,6 +56,10 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case DataFrameContentMsg:
 		m.df = msg.DataFrame
+		fileInfo, _ := os.Stat(m.filePath)
+		if m.df.NRows() > 10000 || fileInfo.Size() > 1<<20 {
+			return m, computeAllStatsCMD(m.df)
+		}
 		m.err = msg.Err
 		return m, nil
 
@@ -91,6 +95,11 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 			m.filteredRows = matches
 		}
+	case PreComputeDone:
+		m.chacheStats = msg.Cache
+
+	case StatsComputed:
+		m.chacheStats[msg.Col] = msg.Stats
 
 	case ErrorMsg:
 		m.err = error(msg)
@@ -368,11 +377,29 @@ func filterCmd(df *dataframe.DataFrame, query string) tea.Cmd {
 	})
 }
 
+func computeCollumnStats(df *dataframe.DataFrame, col int) ColumnsStat {
+
+}
+
 func computeStatsCMD(df *dataframe.DataFrame, statsColumns int) tea.Cmd {
-	/**
-		Here i handle the compute of the stats
-	**/
-	return nil
+	return func() tea.Msg {
+		stats := computeCollumnStats(df, statsColumns)
+		return StatsComputed{Col: statsColumns, Stats: stats}
+	}
+}
+
+func computeAllStatsCMD(df *dataframe.DataFrame) tea.Cmd {
+	return func() tea.Msg {
+		cache := make(map[int]ColumnsStat)
+
+		for col := 0; col < len(df.Series); col++ {
+			stats := computeStatsCMD(df, col)
+			cache[col] = stats
+		}
+
+		return PreComputeDone{Cache: cache}
+
+	}
 }
 
 func scanCmd() tea.Cmd {
