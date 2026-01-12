@@ -29,6 +29,8 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m.updateList(msg)
 		case FileState:
 			return m.updateFile(msg)
+		case HistogramInputState:
+			return m.updateHistogramInput(msg)
 		}
 
 	case ScanResultMsg:
@@ -306,18 +308,14 @@ func (m Model) updateFile(msg tea.KeyMsg) (Model, tea.Cmd) {
 		}
 
 	case "s":
-		if m.df != nil {
-			m.statsMode = !m.statsMode
-			if m.statsMode {
-				m.statsColumns = m.cursorCol
-
-				if _, ok := m.chacheStats[m.statsColumns]; !ok {
-					return m, computeStatsCMD(m.df, m.statsColumns)
-				}
-			}
+		if m.df != nil && !m.statsMode {
+			m.state = HistogramInputState
+			m.histInputMode = true
+			m.histInputBuffer = ""
+			m.histSelectedSugg = 0
+			m.histSuggestions = m.getColumnSuggestions("")
+			return m, nil
 		}
-
-		return m, nil
 
 	case "escape":
 		if m.filterMode {
@@ -378,7 +376,245 @@ func filterCmd(df *dataframe.DataFrame, query string) tea.Cmd {
 }
 
 func computeCollumnStats(df *dataframe.DataFrame, col int) ColumnsStat {
+	stat := ColumnsStat{}
 
+	series := df.Series[col]
+	stat.Name = series.Name()
+	stat.Type = series.Type()
+
+	switch s := series.(type) {
+	case *dataframe.SeriesFloat64:
+		vals := s.Values
+		nRows := s.NRows()
+
+		missing, _ := s.NilCount()
+		stat.Missing = missing
+
+		uniqueMap := make(map[float64]bool)
+		nonNilVals := make([]float64, 0, nRows)
+
+		for i := 0; i < nRows; i++ {
+			val := vals[i]
+			uniqueMap[val] = true
+			nonNilVals = append(nonNilVals, val)
+		}
+		stat.Unique = len(uniqueMap)
+
+		if len(nonNilVals) > 0 {
+			min, max := nonNilVals[0], nonNilVals[0]
+			sum := 0.0
+			for _, v := range nonNilVals {
+				if v < min {
+					min = v
+				}
+				if v > max {
+					max = v
+				}
+				sum += v
+			}
+			stat.Min = min
+			stat.Max = max
+
+			mean, _ := s.Mean(nil)
+			stat.Mean = mean
+
+			if len(nonNilVals) > 0 {
+				median := calculateMedian(nonNilVals)
+				stat.Median = median
+			}
+
+			if min != max {
+				buckets, bucketLabels := createHistogramBuckets(nonNilVals, 10)
+				stat.Buckets = buckets
+				stat.BucketLabels = bucketLabels
+			}
+		}
+
+	case *dataframe.SeriesInt64:
+		nRows := s.NRows()
+
+		missing, _ := s.NilCount()
+		stat.Missing = missing
+
+		uniqueMap := make(map[int64]bool)
+		nonNilVals := make([]float64, 0, nRows)
+
+		for i := 0; i < nRows; i++ {
+			val := s.Value(i)
+			if val != nil {
+				intVal := val.(int64)
+				uniqueMap[intVal] = true
+				nonNilVals = append(nonNilVals, float64(intVal))
+			}
+		}
+		stat.Unique = len(uniqueMap)
+
+		if len(nonNilVals) > 0 {
+			min, max := nonNilVals[0], nonNilVals[0]
+			for _, v := range nonNilVals {
+				if v < min {
+					min = v
+				}
+				if v > max {
+					max = v
+				}
+			}
+			stat.Min = min
+			stat.Max = max
+
+			sum := 0.0
+			for _, v := range nonNilVals {
+				sum += v
+			}
+			stat.Mean = sum / float64(len(nonNilVals))
+
+			if len(nonNilVals) > 0 {
+				median := calculateMedian(nonNilVals)
+				stat.Median = median
+			}
+
+			if min != max {
+				buckets, bucketLabels := createHistogramBuckets(nonNilVals, 10)
+				stat.Buckets = buckets
+				stat.BucketLabels = bucketLabels
+			}
+		}
+
+	case *dataframe.SeriesString:
+		nRows := s.NRows()
+		missing, _ := s.NilCount()
+		stat.Missing = missing
+
+		uniqueMap := make(map[string]bool)
+		for i := 0; i < nRows; i++ {
+			val := s.ValueString(i)
+			if val != "NaN" {
+				uniqueMap[val] = true
+			}
+		}
+		stat.Unique = len(uniqueMap)
+
+	case *dataframe.SeriesMixed:
+		nRows := s.NRows()
+		missing, _ := s.NilCount()
+		stat.Missing = missing
+
+		uniqueMap := make(map[string]bool)
+		nonNilVals := make([]float64, 0, nRows)
+
+		for i := 0; i < nRows; i++ {
+			val := s.Value(i)
+			valStr := fmt.Sprintf("%v", val)
+			if valStr != "NaN" && val != nil {
+				uniqueMap[valStr] = true
+				if f, ok := val.(float64); ok {
+					nonNilVals = append(nonNilVals, f)
+				} else if f, ok := val.(float32); ok {
+					nonNilVals = append(nonNilVals, float64(f))
+				} else if f, ok := val.(int); ok {
+					nonNilVals = append(nonNilVals, float64(f))
+				} else if f, ok := val.(int64); ok {
+					nonNilVals = append(nonNilVals, float64(f))
+				} else if f, ok := val.(int32); ok {
+					nonNilVals = append(nonNilVals, float64(f))
+				}
+			}
+		}
+		stat.Unique = len(uniqueMap)
+
+		if len(nonNilVals) > 0 {
+			min, max := nonNilVals[0], nonNilVals[0]
+			sum := 0.0
+			for _, v := range nonNilVals {
+				if v < min {
+					min = v
+				}
+				if v > max {
+					max = v
+				}
+				sum += v
+			}
+			stat.Min = min
+			stat.Max = max
+			stat.Mean = sum / float64(len(nonNilVals))
+
+			if len(nonNilVals) > 0 {
+				median := calculateMedian(nonNilVals)
+				stat.Median = median
+			}
+
+			if min != max {
+				buckets, bucketLabels := createHistogramBuckets(nonNilVals, 10)
+				stat.Buckets = buckets
+				stat.BucketLabels = bucketLabels
+			}
+		}
+	}
+
+	return stat
+}
+
+func calculateMedian(vals []float64) float64 {
+	n := len(vals)
+	if n == 0 {
+		return 0
+	}
+
+	sorted := make([]float64, n)
+	copy(sorted, vals)
+
+	for i := 0; i < n-1; i++ {
+		for j := i + 1; j < n; j++ {
+			if sorted[i] > sorted[j] {
+				sorted[i], sorted[j] = sorted[j], sorted[i]
+			}
+		}
+	}
+
+	if n%2 == 0 {
+		return (sorted[n/2-1] + sorted[n/2]) / 2.0
+	}
+	return sorted[n/2]
+}
+
+func createHistogramBuckets(vals []float64, numBuckets int) ([]int, []string) {
+	if len(vals) == 0 {
+		return nil, nil
+	}
+
+	min, max := vals[0], vals[0]
+	for _, v := range vals {
+		if v < min {
+			min = v
+		}
+		if v > max {
+			max = v
+		}
+	}
+
+	if min == max {
+		return []int{len(vals)}, []string{fmt.Sprintf("%.2f", min)}
+	}
+
+	buckets := make([]int, numBuckets)
+	bucketLabels := make([]string, numBuckets)
+	bucketWidth := (max - min) / float64(numBuckets)
+
+	for i := 0; i < numBuckets; i++ {
+		bucketMin := min + float64(i)*bucketWidth
+		bucketMax := min + float64(i+1)*bucketWidth
+		bucketLabels[i] = fmt.Sprintf("%.1f-%.1f", bucketMin, bucketMax)
+	}
+
+	for _, v := range vals {
+		bucketIdx := int((v - min) / bucketWidth)
+		if bucketIdx >= numBuckets {
+			bucketIdx = numBuckets - 1
+		}
+		buckets[bucketIdx]++
+	}
+
+	return buckets, bucketLabels
 }
 
 func computeStatsCMD(df *dataframe.DataFrame, statsColumns int) tea.Cmd {
@@ -393,7 +629,7 @@ func computeAllStatsCMD(df *dataframe.DataFrame) tea.Cmd {
 		cache := make(map[int]ColumnsStat)
 
 		for col := 0; col < len(df.Series); col++ {
-			stats := computeStatsCMD(df, col)
+			stats := computeCollumnStats(df, col)
 			cache[col] = stats
 		}
 
@@ -421,4 +657,99 @@ func clamp(v, min, max int) int {
 	}
 
 	return v
+}
+
+func (m Model) getColumnSuggestions(input string) []string {
+	if m.df == nil {
+		return []string{}
+	}
+
+	var suggestions []string
+	lowerInput := strings.ToLower(input)
+	columns := m.df.Names()
+
+	for _, col := range columns {
+		if strings.Contains(strings.ToLower(col), lowerInput) {
+			suggestions = append(suggestions, col)
+		}
+	}
+
+	return suggestions
+}
+
+func (m Model) updateHistogramInput(msg tea.KeyMsg) (Model, tea.Cmd) {
+	switch msg.Type {
+	case tea.KeyRunes:
+		for _, r := range msg.Runes {
+			m.histInputBuffer += string(r)
+		}
+		m.histSuggestions = m.getColumnSuggestions(m.histInputBuffer)
+		m.histSelectedSugg = 0
+		if len(m.histSuggestions) > 0 {
+			m.histSelectedSugg = 0
+		}
+		return m, nil
+
+	case tea.KeyBackspace, tea.KeyDelete:
+		if len(m.histInputBuffer) > 0 {
+			m.histInputBuffer = m.histInputBuffer[:len(m.histInputBuffer)-1]
+			m.histSuggestions = m.getColumnSuggestions(m.histInputBuffer)
+			m.histSelectedSugg = 0
+			if len(m.histSuggestions) > 0 {
+				m.histSelectedSugg = 0
+			}
+		}
+		return m, nil
+
+	case tea.KeyUp, tea.KeyLeft:
+		if m.histSelectedSugg > 0 {
+			m.histSelectedSugg--
+		}
+		return m, nil
+
+	case tea.KeyDown, tea.KeyRight:
+		if m.histSelectedSugg < len(m.histSuggestions)-1 {
+			m.histSelectedSugg++
+		}
+		return m, nil
+
+	case tea.KeyEnter:
+		if len(m.histSuggestions) > 0 {
+			selectedCol := m.histSuggestions[m.histSelectedSugg]
+			for i, col := range m.df.Names() {
+				if col == selectedCol {
+					m.statsColumns = i
+					break
+				}
+			}
+
+			if _, ok := m.chacheStats[m.statsColumns]; !ok {
+				m.histInputMode = false
+				m.histInputBuffer = ""
+				m.histSuggestions = nil
+				m.histSelectedSugg = 0
+				m.state = FileState
+				m.statsMode = true
+				return m, computeStatsCMD(m.df, m.statsColumns)
+			}
+
+			m.histInputMode = false
+			m.histInputBuffer = ""
+			m.histSuggestions = nil
+			m.histSelectedSugg = 0
+			m.state = FileState
+			m.statsMode = true
+		}
+		return m, nil
+
+	case tea.KeyEsc:
+		m.histInputMode = false
+		m.histInputBuffer = ""
+		m.histSuggestions = nil
+		m.histSelectedSugg = 0
+		m.state = FileState
+		return m, nil
+	}
+
+	return m, nil
 }
