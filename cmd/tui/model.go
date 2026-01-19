@@ -10,6 +10,7 @@ type AppState int
 const (
 	ListState AppState = iota
 	FileState
+	HistogramInputState
 )
 
 type UndoCommand struct {
@@ -49,6 +50,13 @@ type Model struct {
 	chacheStats  map[int]ColumnsStat
 	histCache    map[int]string
 
+	//Histogram Input
+	histInputMode    bool
+	histInputBuffer  string
+	histSuggestions  []string
+	histSelectedSugg int
+	histBucketCount  int
+
 	scrollRow int
 	scrollCol int
 	cursorRow int
@@ -75,9 +83,12 @@ type Model struct {
 
 func NewModel() Model {
 	return Model{
-		state:    ListState,
-		selected: 0,
-		maxUndo:  MaxUndo,
+		state:           ListState,
+		selected:        0,
+		maxUndo:         MaxUndo,
+		chacheStats:     make(map[int]ColumnsStat),
+		histCache:       make(map[int]string),
+		histBucketCount: 10,
 	}
 }
 

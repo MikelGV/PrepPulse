@@ -45,10 +45,67 @@ func (m Model) View() string {
 				output = append(output, bar)
 			}
 			if m.statsMode {
-				prompt := components.CreateTable(m.df, m.statsColumns, m.height, m.width)
-				bar := lipgloss.JoinHorizontal(lipgloss.Center, prompt)
-				output = append(output, bar)
+				if stat, ok := m.chacheStats[m.statsColumns]; ok {
+					popupWidth := int(float64(m.width) * 0.75)
+					if popupWidth < 50 {
+						popupWidth = 50
+					}
+
+					popupHeight := int(float64(m.height) * 0.80)
+					if popupHeight < 20 {
+						popupHeight = 20
+					}
+
+					if popupWidth >= m.width-2 {
+						popupWidth = m.width - 4
+					}
+					if popupHeight >= m.height-2 {
+						popupHeight = m.height - 4
+					}
+
+					componentsStat := components.ColumnsStat{
+						Name:         stat.Name,
+						Type:         stat.Type,
+						Min:          stat.Min,
+						Max:          stat.Max,
+						Mean:         stat.Mean,
+						Median:       stat.Median,
+						Unique:       stat.Unique,
+						Missing:      stat.Missing,
+						Buckets:      stat.Buckets,
+						BucketLabels: stat.BucketLabels,
+					}
+					popup := components.RenderHistogramPopup(componentsStat, popupWidth, popupHeight)
+					overlay := lipgloss.Place(
+						m.width, m.height,
+						lipgloss.Center, lipgloss.Center,
+						popup,
+						lipgloss.WithWhitespaceChars(" "),
+					)
+					output = append(output, overlay)
+				}
 			}
+		case HistogramInputState:
+			if m.df != nil {
+				output = append(output, components.RenderDf(m.df, m.width, m.height, m.cursorRow, m.cursorCol, m.scrollRow, m.scrollCol, m.filteredRows, m.editMode, m.editBuffer))
+			}
+
+			popupWidth := int(float64(m.width) * 0.60)
+			if popupWidth < 50 {
+				popupWidth = 50
+			}
+			if popupWidth >= m.width-2 {
+				popupWidth = m.width - 4
+			}
+
+			popup := components.RenderColumnInputPopup(m.histInputBuffer, m.histSuggestions, m.histSelectedSugg, popupWidth, m.height)
+			overlay := lipgloss.Place(
+				m.width, m.height,
+				lipgloss.Center, lipgloss.Center,
+				popup,
+				lipgloss.WithWhitespaceChars(" "),
+			)
+			output = append(output, overlay)
 		}
 	}
 

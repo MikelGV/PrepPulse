@@ -11,7 +11,6 @@ import (
 	"github.com/rocketlaunchr/dataframe-go/exports"
 )
 
-
 func Update_data(path string, df *dataframe.DataFrame) error {
 	if df == nil {
 		return nil
@@ -30,7 +29,7 @@ func Update_data(path string, df *dataframe.DataFrame) error {
 	case ".json":
 		return exports.ExportToJSON(ctx, f, df)
 	case ".tsv":
-		return exports.ExportToCSV(ctx, f, df, exports.CSVExportOptions{ Separator: '\t'} )
+		return exports.ExportToCSV(ctx, f, df, exports.CSVExportOptions{Separator: '\t'})
 	default:
 		return exports.ExportToCSV(ctx, f, df)
 	}

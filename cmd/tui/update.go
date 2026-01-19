@@ -1,6 +1,7 @@
 package tui
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -343,6 +344,18 @@ func (m Model) updateFile(msg tea.KeyMsg) (Model, tea.Cmd) {
 			return m, nil
 		}
 
+	case "[":
+		if m.statsMode && m.histBucketCount > 3 {
+			m.histBucketCount--
+			return m, computeStatsCMDWithBuckets(m.df, m.statsColumns, m.histBucketCount)
+		}
+
+	case "]":
+		if m.statsMode && m.histBucketCount < 30 {
+			m.histBucketCount++
+			return m, computeStatsCMDWithBuckets(m.df, m.statsColumns, m.histBucketCount)
+		}
+
 		return m, nil
 	}
 
@@ -554,6 +567,185 @@ func computeCollumnStats(df *dataframe.DataFrame, col int) ColumnsStat {
 	return stat
 }
 
+func computeCollumnStatsWithBuckets(df *dataframe.DataFrame, col int, bucketCount int) ColumnsStat {
+	stat := ColumnsStat{}
+
+	series := df.Series[col]
+	stat.Name = series.Name()
+	stat.Type = series.Type()
+
+	switch s := series.(type) {
+	case *dataframe.SeriesFloat64:
+		vals := s.Values
+		nRows := s.NRows()
+
+		missing, _ := s.NilCount()
+		stat.Missing = missing
+
+		uniqueMap := make(map[float64]bool)
+		nonNilVals := make([]float64, 0, nRows)
+
+		for i := 0; i < nRows; i++ {
+			val := vals[i]
+			uniqueMap[val] = true
+			nonNilVals = append(nonNilVals, val)
+		}
+		stat.Unique = len(uniqueMap)
+
+		if len(nonNilVals) > 0 {
+			min, max := nonNilVals[0], nonNilVals[0]
+			sum := 0.0
+			for _, v := range nonNilVals {
+				if v < min {
+					min = v
+				}
+				if v > max {
+					max = v
+				}
+				sum += v
+			}
+			stat.Min = min
+			stat.Max = max
+
+			mean, _ := s.Mean(context.TODO())
+			stat.Mean = mean
+
+			if len(nonNilVals) > 0 {
+				median := calculateMedian(nonNilVals)
+				stat.Median = median
+			}
+
+			if min != max {
+				buckets, bucketLabels := createHistogramBuckets(nonNilVals, bucketCount)
+				stat.Buckets = buckets
+				stat.BucketLabels = bucketLabels
+			}
+		}
+
+	case *dataframe.SeriesInt64:
+		nRows := s.NRows()
+
+		missing, _ := s.NilCount()
+		stat.Missing = missing
+
+		uniqueMap := make(map[int64]bool)
+		nonNilVals := make([]float64, 0, nRows)
+
+		for i := 0; i < nRows; i++ {
+			val := s.Value(i)
+			if val != nil {
+				intVal := val.(int64)
+				uniqueMap[intVal] = true
+				nonNilVals = append(nonNilVals, float64(intVal))
+			}
+		}
+		stat.Unique = len(uniqueMap)
+
+		if len(nonNilVals) > 0 {
+			min, max := nonNilVals[0], nonNilVals[0]
+			for _, v := range nonNilVals {
+				if v < min {
+					min = v
+				}
+				if v > max {
+					max = v
+				}
+			}
+			stat.Min = min
+			stat.Max = max
+
+			sum := 0.0
+			for _, v := range nonNilVals {
+				sum += v
+			}
+			stat.Mean = sum / float64(len(nonNilVals))
+
+			if len(nonNilVals) > 0 {
+				median := calculateMedian(nonNilVals)
+				stat.Median = median
+			}
+
+			if min != max {
+				buckets, bucketLabels := createHistogramBuckets(nonNilVals, bucketCount)
+				stat.Buckets = buckets
+				stat.BucketLabels = bucketLabels
+			}
+		}
+
+	case *dataframe.SeriesString:
+		nRows := s.NRows()
+		missing, _ := s.NilCount()
+		stat.Missing = missing
+
+		uniqueMap := make(map[string]bool)
+		for i := 0; i < nRows; i++ {
+			val := s.ValueString(i)
+			if val != "NaN" {
+				uniqueMap[val] = true
+			}
+		}
+		stat.Unique = len(uniqueMap)
+
+	case *dataframe.SeriesMixed:
+		nRows := s.NRows()
+		missing, _ := s.NilCount()
+		stat.Missing = missing
+
+		uniqueMap := make(map[string]bool)
+		nonNilVals := make([]float64, 0, nRows)
+
+		for i := 0; i < nRows; i++ {
+			val := s.Value(i)
+			valStr := fmt.Sprintf("%v", val)
+			if valStr != "NaN" && val != nil {
+				uniqueMap[valStr] = true
+				if f, ok := val.(float64); ok {
+					nonNilVals = append(nonNilVals, f)
+				} else if f, ok := val.(float32); ok {
+					nonNilVals = append(nonNilVals, float64(f))
+				} else if f, ok := val.(int); ok {
+					nonNilVals = append(nonNilVals, float64(f))
+				} else if f, ok := val.(int64); ok {
+					nonNilVals = append(nonNilVals, float64(f))
+				} else if f, ok := val.(int32); ok {
+					nonNilVals = append(nonNilVals, float64(f))
+				}
+			}
+		}
+		stat.Unique = len(uniqueMap)
+
+		if len(nonNilVals) > 0 {
+			min, max := nonNilVals[0], nonNilVals[0]
+			sum := 0.0
+			for _, v := range nonNilVals {
+				if v < min {
+					min = v
+				}
+				if v > max {
+					max = v
+				}
+				sum += v
+			}
+			stat.Min = min
+			stat.Max = max
+			stat.Mean = sum / float64(len(nonNilVals))
+
+			if len(nonNilVals) > 0 {
+				median := calculateMedian(nonNilVals)
+				stat.Median = median
+			}
+
+			if min != max {
+				buckets, bucketLabels := createHistogramBuckets(nonNilVals, bucketCount)
+				stat.Buckets = buckets
+				stat.BucketLabels = bucketLabels
+			}
+		}
+	}
+
+	return stat
+}
+
 func calculateMedian(vals []float64) float64 {
 	n := len(vals)
 	if n == 0 {
@@ -617,10 +809,10 @@ func createHistogramBuckets(vals []float64, numBuckets int) ([]int, []string) {
 	return buckets, bucketLabels
 }
 
-func computeStatsCMD(df *dataframe.DataFrame, statsColumns int) tea.Cmd {
+func computeStatsCMDWithBuckets(df *dataframe.DataFrame, col int, bucketCount int) tea.Cmd {
 	return func() tea.Msg {
-		stats := computeCollumnStats(df, statsColumns)
-		return StatsComputed{Col: statsColumns, Stats: stats}
+		stats := computeCollumnStatsWithBuckets(df, col, bucketCount)
+		return StatsComputed{Col: col, Stats: stats}
 	}
 }
 
@@ -723,22 +915,13 @@ func (m Model) updateHistogramInput(msg tea.KeyMsg) (Model, tea.Cmd) {
 				}
 			}
 
-			if _, ok := m.chacheStats[m.statsColumns]; !ok {
-				m.histInputMode = false
-				m.histInputBuffer = ""
-				m.histSuggestions = nil
-				m.histSelectedSugg = 0
-				m.state = FileState
-				m.statsMode = true
-				return m, computeStatsCMD(m.df, m.statsColumns)
-			}
-
 			m.histInputMode = false
 			m.histInputBuffer = ""
 			m.histSuggestions = nil
 			m.histSelectedSugg = 0
 			m.state = FileState
 			m.statsMode = true
+			return m, computeStatsCMDWithBuckets(m.df, m.statsColumns, m.histBucketCount)
 		}
 		return m, nil
 
